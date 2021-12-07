@@ -11,17 +11,6 @@
     <meta itemprop="image" content="screenshot.png">
     <meta name="description" content="made with cables" />
 
-    <! Script to run on page load, which should redirect user to other html file if on mobile ––> . 
-    <script type="text/javascript">
-    function redirectMobile() {
-        if ($(window).width() < 960) {
-            document.location = "mobile.html";
-        }
-    }
-
-    window.onload = redirectMobile;
-    </script>
-
     <style>
         body {
             margin: 0;
@@ -72,8 +61,7 @@
     <canvas id="glcanvas" width="100vw" height="100vh" tabindex="1"></canvas>
     <!--  
     <footer>
-        made with <a href='https://cables.gl'>cables</a>
-       
+        made with <a href='https://cables.gl'>cables</a>     
     </footer>
     --> 
     <libs/>
