@@ -1,10 +1,24 @@
 <!DOCTYPE html>
 <html>
     <head>
+        <title>plaste.digital</title>
         <meta charset="uft-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <link rel="shortcut icon" type="image/png" href="images/favicon.png"/>
-        <title>plaste.digital</title>
+        
+        <style>
+        
+        canvas
+        {
+            display: block;
+        }
+
+        a
+        {
+            color:white;
+        }
+        
+        </style>
     </head>
     <body bgcolor="#5d6ba3">
         <center>
@@ -12,11 +26,35 @@
             <br><br><br>
             <p><u>plaste.digital</u></p>
             <br>
-            <img src="images/image.png" width ="300" height="300" alt="profile">
+            <!--<img src="images/image.png" width ="300" height="300" alt="profile">-->
+            
+            <canvas id="glcanvas" width="400" height="400"> alpha:true,
+            
+            <pre>"canvas":{"alpha":true,"premultipliedAlpha":true}</pre>   
+
+            <script type="text/javascript" src="cables/js/libs.core.min.js" async></script>
+            <script type="text/javascript" src="cables/js/cables.min.js" async></script>
+            <script type="text/javascript" src="cables/js/ops.js" async></script>
+        
+            <script>
+        
+                var patch=null
+        
+                document.addEventListener("CABLES.jsLoaded", function(event)
+                {
+                    patch=new CABLES.Patch(
+                    {
+                        patchFile:'cables/js/Load_3D_mesh.json',
+                        prefixAssetPath:'',
+                        glCanvasId:'glcanvas',
+                        onError:alert
+                    });
+                });
+        
+            </script>
             <br><br>
             <p></p>coming soon...</p>
             </font>
-        </center>
-       
+        </center> 
     </body>
 </html>
