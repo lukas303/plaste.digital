@@ -9,6 +9,7 @@ Ops.Anim=Ops.Anim || {};
 Ops.Gl.GLTF=Ops.Gl.GLTF || {};
 Ops.Gl.Phong=Ops.Gl.Phong || {};
 Ops.Gl.Matrix=Ops.Gl.Matrix || {};
+Ops.Gl.Shader=Ops.Gl.Shader || {};
 
 
 
@@ -4459,6 +4460,235 @@ updateLuminanceMaskTexture();
 
 Ops.Gl.Phong.PhongMaterial_v6.prototype = new CABLES.Op();
 CABLES.OPS["0d83ed06-cdbe-4fe0-87bb-0ccece7fb6e1"]={f:Ops.Gl.Phong.PhongMaterial_v6,objName:"Ops.Gl.Phong.PhongMaterial_v6"};
+
+
+
+
+// **************************************************************
+// 
+// Ops.Gl.ClearColor
+// 
+// **************************************************************
+
+Ops.Gl.ClearColor = function()
+{
+CABLES.Op.apply(this,arguments);
+const op=this;
+const attachments={};
+const
+    render = op.inTrigger("render"),
+    trigger = op.outTrigger("trigger"),
+    r = op.inFloatSlider("r", 0.1),
+    g = op.inFloatSlider("g", 0.1),
+    b = op.inFloatSlider("b", 0.1),
+    a = op.inFloatSlider("a", 1);
+
+r.setUiAttribs({ "colorPick": true });
+
+const cgl = op.patch.cgl;
+
+render.onTriggered = function ()
+{
+    cgl.gl.clearColor(r.get(), g.get(), b.get(), a.get());
+    cgl.gl.clear(cgl.gl.COLOR_BUFFER_BIT | cgl.gl.DEPTH_BUFFER_BIT);
+    trigger.trigger();
+};
+
+
+};
+
+Ops.Gl.ClearColor.prototype = new CABLES.Op();
+CABLES.OPS["19b441eb-9f63-4f35-ba08-b87841517c4d"]={f:Ops.Gl.ClearColor,objName:"Ops.Gl.ClearColor"};
+
+
+
+
+// **************************************************************
+// 
+// Ops.Gl.Shader.BasicMaterial_v3
+// 
+// **************************************************************
+
+Ops.Gl.Shader.BasicMaterial_v3 = function()
+{
+CABLES.Op.apply(this,arguments);
+const op=this;
+const attachments={basicmaterial_frag:"{{MODULES_HEAD}}\n\nIN vec2 texCoord;\n\n#ifdef VERTEX_COLORS\nIN vec4 vertCol;\n#endif\n\n#ifdef HAS_TEXTURES\n    IN vec2 texCoordOrig;\n    #ifdef HAS_TEXTURE_DIFFUSE\n        UNI sampler2D tex;\n    #endif\n    #ifdef HAS_TEXTURE_OPACITY\n        UNI sampler2D texOpacity;\n   #endif\n#endif\n\nvoid main()\n{\n    {{MODULE_BEGIN_FRAG}}\n    vec4 col=color;\n\n\n    #ifdef HAS_TEXTURES\n        vec2 uv=texCoord;\n\n        #ifdef CROP_TEXCOORDS\n            if(uv.x<0.0 || uv.x>1.0 || uv.y<0.0 || uv.y>1.0) discard;\n        #endif\n\n        #ifdef HAS_TEXTURE_DIFFUSE\n            col=texture(tex,uv);\n\n            #ifdef COLORIZE_TEXTURE\n                col.r*=color.r;\n                col.g*=color.g;\n                col.b*=color.b;\n            #endif\n        #endif\n        col.a*=color.a;\n        #ifdef HAS_TEXTURE_OPACITY\n            #ifdef TRANSFORMALPHATEXCOORDS\n                uv=texCoordOrig;\n            #endif\n            #ifdef ALPHA_MASK_ALPHA\n                col.a*=texture(texOpacity,uv).a;\n            #endif\n            #ifdef ALPHA_MASK_LUMI\n                col.a*=dot(vec3(0.2126,0.7152,0.0722), texture(texOpacity,uv).rgb);\n            #endif\n            #ifdef ALPHA_MASK_R\n                col.a*=texture(texOpacity,uv).r;\n            #endif\n            #ifdef ALPHA_MASK_G\n                col.a*=texture(texOpacity,uv).g;\n            #endif\n            #ifdef ALPHA_MASK_B\n                col.a*=texture(texOpacity,uv).b;\n            #endif\n            // #endif\n        #endif\n    #endif\n\n    {{MODULE_COLOR}}\n\n    #ifdef DISCARDTRANS\n        if(col.a<0.2) discard;\n    #endif\n\n    #ifdef VERTEX_COLORS\n        col*=vertCol;\n    #endif\n\n    outColor = col;\n}\n",basicmaterial_vert:"IN vec3 vPosition;\nIN vec2 attrTexCoord;\nIN vec3 attrVertNormal;\nIN float attrVertIndex;\n\n{{MODULES_HEAD}}\n\nOUT vec3 norm;\nOUT vec2 texCoord;\nOUT vec2 texCoordOrig;\n\nUNI mat4 projMatrix;\nUNI mat4 modelMatrix;\nUNI mat4 viewMatrix;\n\n#ifdef HAS_TEXTURES\n    UNI float diffuseRepeatX;\n    UNI float diffuseRepeatY;\n    UNI float texOffsetX;\n    UNI float texOffsetY;\n#endif\n\n#ifdef VERTEX_COLORS\n    in vec4 attrVertColor;\n    out vec4 vertCol;\n\n#endif\n\n\nvoid main()\n{\n    mat4 mMatrix=modelMatrix;\n    mat4 mvMatrix;\n\n    norm=attrVertNormal;\n    texCoordOrig=attrTexCoord;\n    texCoord=attrTexCoord;\n    #ifdef HAS_TEXTURES\n        texCoord.x=texCoord.x*diffuseRepeatX+texOffsetX;\n        texCoord.y=(1.0-texCoord.y)*diffuseRepeatY+texOffsetY;\n    #endif\n\n    #ifdef VERTEX_COLORS\n        vertCol=attrVertColor;\n    #endif\n\n    vec4 pos = vec4(vPosition, 1.0);\n\n    #ifdef BILLBOARD\n       vec3 position=vPosition;\n       mvMatrix=viewMatrix*modelMatrix;\n\n       gl_Position = projMatrix * mvMatrix * vec4((\n           position.x * vec3(\n               mvMatrix[0][0],\n               mvMatrix[1][0],\n               mvMatrix[2][0] ) +\n           position.y * vec3(\n               mvMatrix[0][1],\n               mvMatrix[1][1],\n               mvMatrix[2][1]) ), 1.0);\n    #endif\n\n    {{MODULE_VERTEX_POSITION}}\n\n    #ifndef BILLBOARD\n        mvMatrix=viewMatrix * mMatrix;\n    #endif\n\n\n    #ifndef BILLBOARD\n        // gl_Position = projMatrix * viewMatrix * modelMatrix * pos;\n        gl_Position = projMatrix * mvMatrix * pos;\n    #endif\n}\n",};
+const render = op.inTrigger("render");
+
+const trigger = op.outTrigger("trigger");
+const shaderOut = op.outObject("shader", null, "shader");
+
+shaderOut.ignoreValueSerialize = true;
+
+op.toWorkPortsNeedToBeLinked(render);
+
+const cgl = op.patch.cgl;
+const shader = new CGL.Shader(cgl, "basicmaterialnew");
+shader.setModules(["MODULE_VERTEX_POSITION", "MODULE_COLOR", "MODULE_BEGIN_FRAG"]);
+shader.setSource(attachments.basicmaterial_vert, attachments.basicmaterial_frag);
+shaderOut.set(shader);
+
+render.onTriggered = doRender;
+
+// rgba colors
+const r = op.inValueSlider("r", Math.random());
+const g = op.inValueSlider("g", Math.random());
+const b = op.inValueSlider("b", Math.random());
+const a = op.inValueSlider("a", 1);
+r.setUiAttribs({ "colorPick": true });
+
+// const uniColor=new CGL.Uniform(shader,'4f','color',r,g,b,a);
+const colUni = shader.addUniformFrag("4f", "color", r, g, b, a);
+
+shader.uniformColorDiffuse = colUni;
+
+// diffuse outTexture
+
+const diffuseTexture = op.inTexture("texture");
+let diffuseTextureUniform = null;
+diffuseTexture.onChange = updateDiffuseTexture;
+
+const colorizeTexture = op.inValueBool("colorizeTexture", false);
+const vertexColors = op.inValueBool("Vertex Colors", false);
+
+// opacity texture
+const textureOpacity = op.inTexture("textureOpacity");
+let textureOpacityUniform = null;
+
+const alphaMaskSource = op.inSwitch("Alpha Mask Source", ["Luminance", "R", "G", "B", "A"], "Luminance");
+alphaMaskSource.setUiAttribs({ "greyout": true });
+textureOpacity.onChange = updateOpacity;
+
+const texCoordAlpha = op.inValueBool("Opacity TexCoords Transform", false);
+const discardTransPxl = op.inValueBool("Discard Transparent Pixels");
+
+// texture coords
+
+const
+    diffuseRepeatX = op.inValue("diffuseRepeatX", 1),
+    diffuseRepeatY = op.inValue("diffuseRepeatY", 1),
+    diffuseOffsetX = op.inValue("Tex Offset X", 0),
+    diffuseOffsetY = op.inValue("Tex Offset Y", 0),
+    cropRepeat = op.inBool("Crop TexCoords", false);
+
+shader.addUniformFrag("f", "diffuseRepeatX", diffuseRepeatX);
+shader.addUniformFrag("f", "diffuseRepeatY", diffuseRepeatY);
+shader.addUniformFrag("f", "texOffsetX", diffuseOffsetX);
+shader.addUniformFrag("f", "texOffsetY", diffuseOffsetY);
+
+const doBillboard = op.inValueBool("billboard", false);
+
+alphaMaskSource.onChange =
+    doBillboard.onChange =
+    discardTransPxl.onChange =
+    texCoordAlpha.onChange =
+    cropRepeat.onChange =
+    vertexColors.onChange =
+    colorizeTexture.onChange = updateDefines;
+
+op.setPortGroup("Color", [r, g, b, a]);
+op.setPortGroup("Color Texture", [diffuseTexture, vertexColors, colorizeTexture]);
+op.setPortGroup("Opacity", [textureOpacity, alphaMaskSource, discardTransPxl, texCoordAlpha]);
+op.setPortGroup("Texture Transform", [diffuseRepeatX, diffuseRepeatY, diffuseOffsetX, diffuseOffsetY, cropRepeat]);
+
+updateOpacity();
+updateDiffuseTexture();
+
+op.preRender = function ()
+{
+    shader.bind();
+    doRender();
+};
+
+function doRender()
+{
+    if (!shader) return;
+
+    cgl.pushShader(shader);
+    shader.popTextures();
+
+    if (diffuseTextureUniform && diffuseTexture.get()) shader.pushTexture(diffuseTextureUniform, diffuseTexture.get());
+    if (textureOpacityUniform && textureOpacity.get()) shader.pushTexture(textureOpacityUniform, textureOpacity.get());
+
+    trigger.trigger();
+
+    cgl.popShader();
+}
+
+function updateOpacity()
+{
+    if (textureOpacity.get())
+    {
+        if (textureOpacityUniform !== null) return;
+        shader.removeUniform("texOpacity");
+        shader.define("HAS_TEXTURE_OPACITY");
+        if (!textureOpacityUniform)textureOpacityUniform = new CGL.Uniform(shader, "t", "texOpacity");
+
+        alphaMaskSource.setUiAttribs({ "greyout": false });
+        texCoordAlpha.setUiAttribs({ "greyout": false });
+    }
+    else
+    {
+        shader.removeUniform("texOpacity");
+        shader.removeDefine("HAS_TEXTURE_OPACITY");
+        textureOpacityUniform = null;
+
+        alphaMaskSource.setUiAttribs({ "greyout": true });
+        texCoordAlpha.setUiAttribs({ "greyout": true });
+    }
+
+    updateDefines();
+}
+
+function updateDiffuseTexture()
+{
+    if (diffuseTexture.get())
+    {
+        if (!shader.hasDefine("HAS_TEXTURE_DIFFUSE"))shader.define("HAS_TEXTURE_DIFFUSE");
+        if (!diffuseTextureUniform)diffuseTextureUniform = new CGL.Uniform(shader, "t", "texDiffuse");
+
+        diffuseRepeatX.setUiAttribs({ "greyout": false });
+        diffuseRepeatY.setUiAttribs({ "greyout": false });
+        diffuseOffsetX.setUiAttribs({ "greyout": false });
+        diffuseOffsetY.setUiAttribs({ "greyout": false });
+        colorizeTexture.setUiAttribs({ "greyout": false });
+    }
+    else
+    {
+        shader.removeUniform("texDiffuse");
+        shader.removeDefine("HAS_TEXTURE_DIFFUSE");
+        diffuseTextureUniform = null;
+
+        diffuseRepeatX.setUiAttribs({ "greyout": true });
+        diffuseRepeatY.setUiAttribs({ "greyout": true });
+        diffuseOffsetX.setUiAttribs({ "greyout": true });
+        diffuseOffsetY.setUiAttribs({ "greyout": true });
+        colorizeTexture.setUiAttribs({ "greyout": true });
+    }
+}
+
+function updateDefines()
+{
+    shader.toggleDefine("VERTEX_COLORS", vertexColors.get());
+    shader.toggleDefine("CROP_TEXCOORDS", cropRepeat.get());
+    shader.toggleDefine("COLORIZE_TEXTURE", colorizeTexture.get());
+    shader.toggleDefine("TRANSFORMALPHATEXCOORDS", texCoordAlpha.get());
+    shader.toggleDefine("DISCARDTRANS", discardTransPxl.get());
+    shader.toggleDefine("BILLBOARD", doBillboard.get());
+
+    shader.toggleDefine("ALPHA_MASK_ALPHA", alphaMaskSource.get() == "A");
+    shader.toggleDefine("ALPHA_MASK_LUMI", alphaMaskSource.get() == "Luminance");
+    shader.toggleDefine("ALPHA_MASK_R", alphaMaskSource.get() == "R");
+    shader.toggleDefine("ALPHA_MASK_G", alphaMaskSource.get() == "G");
+    shader.toggleDefine("ALPHA_MASK_B", alphaMaskSource.get() == "B");
+}
+
+
+};
+
+Ops.Gl.Shader.BasicMaterial_v3.prototype = new CABLES.Op();
+CABLES.OPS["ec55d252-3843-41b1-b731-0482dbd9e72b"]={f:Ops.Gl.Shader.BasicMaterial_v3,objName:"Ops.Gl.Shader.BasicMaterial_v3"};
 
 
 window.addEventListener('load', function(event) {
